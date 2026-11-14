@@ -189,6 +189,19 @@ def transform_cloudfront_distributions(
         )
         item["vpc_origin_ids"] = vpc_origin_ids or None
 
+        # Paired "domain|path" origin endpoints, so consumers can match what
+        # the distribution fronts (e.g. an API Gateway execute endpoint).
+        # An empty path segment means requests reach the origin as-is.
+        item["origin_endpoints"] = (
+            sorted(
+                {
+                    f"{origin.get('DomainName', '')}|{origin.get('OriginPath', '')}"
+                    for origin in origin_items
+                }
+            )
+            or None
+        )
+
         # Extract Lambda function ARNs from cache behaviors
         lambda_arns: list[str] = []
 
