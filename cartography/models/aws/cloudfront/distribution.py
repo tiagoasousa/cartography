@@ -127,6 +127,11 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
         description="IDs of the VPC origins the distribution forwards to. A VPC origin lets CloudFront reach an internal load balancer or a private EC2 instance, so a target behind one can be internet-facing without a public address. Unset when the distribution has none.",
     )
 
+    origin_endpoints: PropertyRef = PropertyRef(
+        "origin_endpoints",
+        description="Paired 'domain|path' origin endpoints the distribution forwards to. An empty path segment means the origin receives requests as-is. Used to match what a distribution fronts, e.g. an API Gateway execute endpoint behind it.",
+    )
+
     # WAF integration
     web_acl_id: PropertyRef = PropertyRef(
         "WebACLId",

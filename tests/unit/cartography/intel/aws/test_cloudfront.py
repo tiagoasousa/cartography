@@ -184,6 +184,22 @@ def test_transform_cloudfront_distributions_vpc_origin():
     ]
 
 
+def test_transform_cloudfront_distributions_origin_endpoints():
+    result = cloudfront.transform_cloudfront_distributions(
+        test_data.CLOUDFRONT_DISTRIBUTIONS_VPC_ORIGIN
+        + test_data.CLOUDFRONT_DISTRIBUTIONS_CUSTOM_ORIGIN
+    )
+
+    assert [dist["origin_endpoints"] for dist in result] == [
+        [
+            "internal-app-1234567890.us-east-1.elb.amazonaws.com|",
+            "internal-app-1234567890.us-east-1.elb.amazonaws.com|/failover",
+            "www.example.com|",
+        ],
+        ["origin.backend.example.com|"],
+    ]
+
+
 def test_transform_cloudfront_distributions_empty():
     """Test transformation with empty input."""
     result = cloudfront.transform_cloudfront_distributions([])
