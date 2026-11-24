@@ -209,6 +209,11 @@ class AWSDNSRecordToCloudFrontDistributionRelProperties(CartographyRelProperties
 
 
 @dataclass(frozen=True)
+class AWSDNSRecordToRedshiftClusterRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class AWSDNSRecordToCloudFrontDistributionRel(CartographyRelSchema):
     target_node_label: str = "AWSCloudFrontDistribution"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -220,6 +225,21 @@ class AWSDNSRecordToCloudFrontDistributionRel(CartographyRelSchema):
     rel_label: str = "DNS_POINTS_TO"
     properties: AWSDNSRecordToCloudFrontDistributionRelProperties = (
         AWSDNSRecordToCloudFrontDistributionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSDNSRecordToRedshiftClusterRel(CartographyRelSchema):
+    target_node_label: str = "AWSRedshiftCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "endpoint_address": PropertyRef("value"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DNS_POINTS_TO"
+    properties: AWSDNSRecordToRedshiftClusterRelProperties = (
+        AWSDNSRecordToRedshiftClusterRelProperties()
     )
 
 
@@ -298,6 +318,7 @@ class AWSDNSRecordSchema(CartographyNodeSchema):
             AWSDNSRecordToLoadBalancerV2Rel(),
             AWSDNSRecordToESDomainRel(),
             AWSDNSRecordToCloudFrontDistributionRel(),
+            AWSDNSRecordToRedshiftClusterRel(),
             AWSDNSRecordToDNSRecordRel(),
             AWSDNSRecordToZoneRel(),
             AWSDNSRecordToIpRel(),
