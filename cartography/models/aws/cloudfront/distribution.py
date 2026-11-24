@@ -132,6 +132,12 @@ class CloudFrontDistributionNodeProperties(CartographyNodeProperties):
         description="Paired 'domain|path' origin endpoints the distribution forwards to. An empty path segment means the origin receives requests as-is. Used to match what a distribution fronts, e.g. an API Gateway execute endpoint behind it.",
     )
 
+    origin_domain_names: PropertyRef = PropertyRef(
+        "origin_domain_names",
+        extra_index=True,
+        description="Domain names of all origins configured on this distribution, including custom origins such as load balancers",
+    )
+
     # WAF integration
     web_acl_id: PropertyRef = PropertyRef(
         "WebACLId",
@@ -183,6 +189,28 @@ class CloudFrontDistributionToS3BucketRel(CartographyRelSchema):
     rel_label: str = "SERVES_FROM"
     properties: CloudFrontDistributionToS3BucketRelProperties = (
         CloudFrontDistributionToS3BucketRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class CloudFrontDistributionToLoadBalancerV2RelProperties(CartographyRelProperties):
+    """Properties for the relationship between AWSCloudFrontDistribution and AWSLoadBalancerV2."""
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudFrontDistributionToLoadBalancerV2Rel(CartographyRelSchema):
+    """Indicates that the CloudFront distribution serves content from an ALB or NLB custom origin."""
+
+    target_node_label: str = "AWSLoadBalancerV2"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"dnsname": PropertyRef("origin_domain_names", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SERVES_FROM"
+    properties: CloudFrontDistributionToLoadBalancerV2RelProperties = (
+        CloudFrontDistributionToLoadBalancerV2RelProperties()
     )
 
 
@@ -255,6 +283,7 @@ class CloudFrontDistributionSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudFrontDistributionToS3BucketRel(),
+            CloudFrontDistributionToLoadBalancerV2Rel(),
             CloudFrontDistributionToACMCertificateRel(),
             CloudFrontDistributionToLambdaRel(),
         ],
