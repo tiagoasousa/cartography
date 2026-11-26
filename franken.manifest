@@ -2,18 +2,24 @@
 # Columns: <commit> <owning-branch> <subject>
 # Rebuild: scripts/rebuild-franken.sh
 # A patch leaves this file once it merges upstream.
-ff50e0d75a25def3c48228af4e94b885075f8840 feat/aws-lambda-function-url-config   feat(aws): sync Lambda function URL configs
-6a23f14b7e7725dbdcf97d54b1fa5279876fcf35 feat/aws-apigatewayv2-stages          feat(aws): sync API Gateway v2 stages and WAFv2 stage associations
+#
+# Order is dependency order. stack/cloudfront-routing carries two commits:
+# behavior routing needs origin_domain_names from the CF-origins patch, so the
+# pair must stay adjacent and in this order.
+5be986e300ae1fef6a95e0fab25dbd20ab5fc51e feat/aws-lambda-function-url-config   feat(aws): sync Lambda function URL configs
+da35fa0fe83236ce2a93005b64225fef76d4b313 feat/aws-apigatewayv2-stages          feat(aws): sync API Gateway v2 stages and WAFv2 stage associations
+38f286b323ae4672cca33205acfe9f454b192491 feat/aws-apigatewayv2-stages          test(aws): satisfy isort and mypy in apigatewayv2/wafv2 tests
+875eee8c66caf725dc9b9700c7ed967116567cd2 feat/aws-apigatewayv2-stages          fix(aws): harden apigatewayv2 stage sync per review
 e917166f2b5aba28ee30689f746a0bce96551277 fix/aws-lambda-retry-budget-override  fix(aws): let CARTOGRAPHY_AWS_MAX_ATTEMPTS override the Lambda retry budget
-ceccce53b7cb795bace84b37947344d3856592ae feat/aws-cloudfront-origin-endpoints  feat(aws): persist CloudFront origin endpoints on the distribution node
-ee8d8a97042ed0bfc163bb8d86d58effdc4c30ba fix/aws-organizations-account-names   fix(aws): keep Organizations account names across per-account scans
-6887a73ac13a3f220f2ea13adb03d1be5a6d06c2 feat/aws-iam-root-password-presence   feat(aws): persist root password presence from the IAM account summary
-46864a44163b3eb58c3206177b4e38d9a65ba5f9 feat/route53-cloudfront-dns           Add Route53 DNS_POINTS_TO relationship for CloudFront distributions
-ab7d7b6f8019d66a0ec3601949e3507b7c7ada7e feat/cloudfront-alb-origins           Model CloudFront custom origins and link distributions to load balancers
-330e3736851c9f8ae41e361f38f4886bd0f7306b feat/route53-redshift-dns             Add Route53 DNS_POINTS_TO relationship for Redshift clusters
-dbdc24f30ab429c58e76edba9c4e3da4f5a68b08 feat/apigateway-lambda-integration    Link API Gateway REST integrations to Lambda functions
-150ebd89732f194c3eac3c51ecf980a6e814e815 fix/iprange-shared-cleanup-2928       fix(aws): stop AWSIpRange from claiming multi-account ownership
-4dd773fc8ddf8e691f09ef0f34ec707b01ff7893 fix/iprange-shared-cleanup-2928       fix(aws): scope AWSIpRange cleanup to the referencing account's rules
-9bd9223c1d029517346009fe9fe9ae3585d82c15 feat/cloudfront-behavior-routing      feat(aws): store CloudFront cache behavior routing on distributions
-ada28dd206ec414a501c47209f715a8b07f998a8 feat/route53-dualstack-cname-matching fix(aws): match ordinary CNAMEs to dualstack ELB targets
-79f3af128aed6824024ea6af065b7ba681aadc92 feat/aws-elbv2-listener-rules         feat(aws): ingest ELBv2 listener routing rules for host+path target-group resolution
+714791946ba6cbc01ad27dbcc7c3dce96ce2feae fix/aws-organizations-account-names   fix(aws): keep Organizations account names across per-account scans
+e728e2c8c5acf2f54c45171f8d37bf97f5266311 feat/aws-iam-root-password-presence   feat(aws): persist root password presence from the IAM account summary
+3d50d96f9c258b3a3424dd26078ca977c12f2895 feat/route53-cloudfront-dns           Add Route53 DNS_POINTS_TO relationship for CloudFront distributions
+35887475b80b802088981a8e918370d973a54e65 stack/cloudfront-routing              feat(aws): persist CloudFront origin endpoints on the distribution node
+5be9b6dea2fcdde7d7c122844004b9feba053e80 stack/cloudfront-routing              feat(aws): store CloudFront cache behavior routing on distributions
+ef3bef3e67ab60506a3e38785208a0f673986c4f feat/cloudfront-alb-origins           Model CloudFront custom origins and link distributions to load balancers
+c64617495f49862935cbd00fe386c0c0986c9488 feat/route53-redshift-dns             Add Route53 DNS_POINTS_TO relationship for Redshift clusters
+2967261c0541e83e68379c64bf7acaf23748fcbb feat/apigateway-lambda-integration    Link API Gateway REST integrations to Lambda functions
+2411f221750063973815aee78cf66265412dbd43 fix/iprange-shared-cleanup-2928       fix(aws): stop AWSIpRange from claiming multi-account ownership
+1543826b37d26f3b4a21af2a5fde99b312135774 fix/iprange-shared-cleanup-2928       fix(aws): scope AWSIpRange cleanup to the referencing account's rules
+0b83a809121c44727930656f214490a0e8fe6e52 feat/route53-dualstack-cname-matching fix(aws): match ordinary CNAMEs to dualstack ELB targets
+571fa988289988b9cf490e3f16f0449aa2c5c949 feat/aws-elbv2-listener-rules         feat(aws): ingest ELBv2 listener routing rules for host+path target-group resolution
