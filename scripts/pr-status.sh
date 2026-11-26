@@ -4,15 +4,21 @@ set -uo pipefail
 REPO="${CARTOGRAPHY_REPO:-$HOME/repos/cartography-work}"
 UPSTREAM="cartography-cncf/cartography"
 cd "$REPO" || exit 2
-git fetch --quiet upstream origin
+git fetch --quiet upstream && git fetch --quiet origin
 
 ME=$(gh api user --jq .login 2>/dev/null || echo unknown)
 echo "=== upstream PRs by $ME ==="
 nums=$(gh api "search/issues?q=repo:$UPSTREAM+author:$ME+type:pr+state:open&per_page=50" --jq '.items[].number' 2>/dev/null)
 if [ -z "$nums" ]; then echo "  (none)"; fi
 for n in $nums; do
-  gh api "repos/$UPSTREAM/pulls/$n" \
-    --jq '"  #\(.number) [\(.head.ref)] mergeable=\(.mergeable) state=\(.mergeStateStatus) review=\(.reviewDecision // "none")  \(.title)"' 2>/dev/null
+  gh api "repos/$UPSTREAM/pulls/$n" > /tmp/prstatus.$$ 2>/dev/null
+  python3 - /tmp/prstatus.$$ <<'PY' 2>/dev/null
+import json,sys
+d=json.load(open(sys.argv[1]))
+# mergeStateStatus/reviewDecision are not on this API version; use mergeable_state.
+print(f"  #{d['number']} [{d['head']['ref']}] mergeable={d['mergeable']} state={d.get('mergeable_state')} draft={d['draft']}  {d['title'][:60]}")
+PY
+  rm -f /tmp/prstatus.$$
 done
 
 echo

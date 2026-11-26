@@ -7,7 +7,7 @@ REPO="${CARTOGRAPHY_REPO:-$HOME/repos/cartography-work}"
 MANIFEST="$OPS/franken.manifest"
 cd "$REPO"
 
-git fetch --quiet upstream origin
+git fetch --quiet upstream && git fetch --quiet origin
 base=$(git rev-parse origin/master)
 git branch -f franken-prev franken-master >/dev/null 2>&1 || true
 

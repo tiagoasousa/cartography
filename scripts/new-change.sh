@@ -11,7 +11,7 @@ branch="$kind/$slug"
 wt="$HOME/repos/wt-$slug"
 
 cd "$REPO"
-git fetch --quiet upstream origin
+git fetch --quiet upstream && git fetch --quiet origin
 if git show-ref --verify --quiet "refs/heads/$branch"; then
   echo "branch $branch already exists" >&2; exit 1
 fi
