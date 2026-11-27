@@ -26,5 +26,4 @@ c9fa8adfa12acadba48e53c3cbcbfc33213210db feat/route53-redshift-dns             R
 0b83a809121c44727930656f214490a0e8fe6e52 feat/route53-dualstack-cname-matching fix(aws): match ordinary CNAMEs to dualstack ELB targets
 571fa988289988b9cf490e3f16f0449aa2c5c949 feat/aws-elbv2-listener-rules         feat(aws): ingest ELBv2 listener routing rules for host+path target-group resolution
 ba47f1d33745de6595ce1f828eb1ae55de358302 feat/aws-elbv2-listener-rules         test(aws): cover ELBv2 listener rule routing
-bd19ba9a88f66e9b899ad2bc487c94131cb6ed4b fix/aws-elbv2-listener-rules      fix(aws): drop an unused Any import from the ELBv2 listener rules patch
-c747878253acbb1547230804a5bfe42c4db2096c ci/franken-gates                 ci: gate franken-master and make it the artifact other repos pin
+d3685e20cf528e23db6de14fbf744e7df9cfa1d9 ci/franken-gates                 ci: gate franken-master, add the ELBv2 describe_rules fixture, fix lint
