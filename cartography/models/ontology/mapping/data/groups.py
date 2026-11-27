@@ -357,6 +357,27 @@ tailscale_mapping = OntologyMapping(
     ],
 )
 
+# LangSmith
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithUserGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 # Kubernetes
 kubernetes_mapping = OntologyMapping(
     module_name="kubernetes",
@@ -425,6 +446,23 @@ salesforce_mapping = OntologyMapping(
     ],
 )
 
+# Pylon
+pylon_mapping = OntologyMapping(
+    module_name="pylon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PylonTeam",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # description: Not available
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 zoom_mapping = OntologyMapping(
     module_name="zoom",
     nodes=[
@@ -457,10 +495,12 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "opsgenie": opsgenie_mapping,
     "scaleway": scaleway_mapping,
     "sentry": sentry_mapping,
+    "pylon": pylon_mapping,
     "slack": slack_mapping,
     "tailscale": tailscale_mapping,
     "onepassword": onepassword_mapping,
     "kubernetes": kubernetes_mapping,
+    "langsmith": langsmith_mapping,
     "vercel": vercel_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",

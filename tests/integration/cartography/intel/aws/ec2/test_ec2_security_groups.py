@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -298,3 +299,114 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         # Test cross-security group relationships
         ("sg-web-server-12345", "sg-028e2522c72719996"),
     }
+
+    # Assert AWSIpRange nodes exist (one global node per CIDR). Earlier tests in
+    # this module share the graph, so assert the expected subset.
+    sync_range_nodes = check_nodes(neo4j_session, "AWSIpRange", ["id"])
+    assert sync_range_nodes is not None
+    assert sync_range_nodes >= {
+        ("203.0.113.0/24",),
+        ("0.0.0.0/0",),
+        ("8.8.8.8/32",),
+        ("10.0.0.0/8",),
+        ("192.0.2.0/24",),
+        ("198.51.100.0/24",),
+    }
+
+    # Assert AWSIpRanges are connected to the rules that reference them
+    assert check_rels(
+        neo4j_session,
+        "AWSIpRange",
+        "id",
+        "AWSIpRule",
+        "ruleid",
+        "MEMBER_OF_IP_RULE",
+        rel_direction_right=True,
+    ) >= {
+        ("0.0.0.0/0", "sg-028e2522c72719996/IpPermissionsEgress/443/443/tcp"),
+        ("0.0.0.0/0", "sg-028e2522c72719996/IpPermissionsEgress/80/80/tcp"),
+        ("0.0.0.0/0", "sg-053dba35430032a0d/IpPermissionsEgress/None/None/-1"),
+        ("0.0.0.0/0", "sg-06c795c66be8937be/IpPermissionsEgress/443/443/tcp"),
+        ("0.0.0.0/0", "sg-06c795c66be8937be/IpPermissionsEgress/80/80/tcp"),
+        ("0.0.0.0/0", "sg-0fd4fff275d63600f/IpPermissionsEgress/None/None/-1"),
+        ("0.0.0.0/0", "sg-web-server-12345/IpPermissions/80/80/tcp"),
+        ("0.0.0.0/0", "sg-web-server-12345/IpPermissionsEgress/None/None/-1"),
+        ("10.0.0.0/8", "sg-web-server-12345/IpPermissions/22/22/tcp"),
+        ("192.0.2.0/24", "sg-web-server-12345/IpPermissions/22/2222/tcp"),
+        ("198.51.100.0/24", "sg-web-server-12345/IpPermissions/222/222/tcp"),
+        ("203.0.113.0/24", "sg-028e2522c72719996/IpPermissions/443/443/tcp"),
+        ("203.0.113.0/24", "sg-028e2522c72719996/IpPermissions/80/80/tcp"),
+        ("203.0.113.0/24", "sg-06c795c66be8937be/IpPermissions/443/443/tcp"),
+        ("203.0.113.0/24", "sg-06c795c66be8937be/IpPermissions/80/80/tcp"),
+        ("8.8.8.8/32", "sg-028e2522c72719996/IpPermissionsEgress/None/None/-1"),
+        ("8.8.8.8/32", "sg-06c795c66be8937be/IpPermissionsEgress/None/None/-1"),
+    }
+
+    # Regression test for https://github.com/cartography-cncf/cartography/issues/2928:
+    # AWSIpRange is a reference to a shared CIDR, not a resource the account owns,
+    # so it must NOT carry a (:AWSAccount)-[:RESOURCE]->(:AWSIpRange) ownership edge.
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            "AWSIpRange",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
+
+def test_ip_range_cleanup_preserves_other_accounts(neo4j_session):
+    """
+    Regression for https://github.com/cartography-cncf/cartography/issues/2928:
+    a CIDR referenced by rules in two accounts is one global node, and one
+    account's cleanup must not delete the other account's MEMBER_OF_IP_RULE
+    edges on it (which silently broke the internet-exposure analysis).
+    """
+    second_account_id = "111111111111"
+    second_update_tag = TEST_UPDATE_TAG + 1
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    create_test_account(neo4j_session, second_account_id, second_update_tag)
+
+    # Same CIDRs in both accounts, distinct group ids so rule ids don't collide.
+    second_data = copy.deepcopy(DESCRIBE_SGS)
+    for group in second_data:
+        group["GroupId"] = f"{group['GroupId']}-b"
+
+    for data, account_id, update_tag in (
+        (DESCRIBE_SGS, TEST_ACCOUNT_ID, TEST_UPDATE_TAG),
+        (second_data, second_account_id, second_update_tag),
+    ):
+        transformed = (
+            cartography.intel.aws.ec2.security_groups.transform_ec2_security_group_data(
+                data
+            )
+        )
+        cartography.intel.aws.ec2.security_groups.load_ec2_security_groupinfo(
+            neo4j_session,
+            transformed,
+            TEST_REGION,
+            account_id,
+            update_tag,
+        )
+        cartography.intel.aws.ec2.security_groups.cleanup_ec2_security_groupinfo(
+            neo4j_session,
+            {"AWS_ID": account_id, "UPDATE_TAG": update_tag},
+        )
+
+    # The shared CIDR node exists once, and both accounts' rules still reference it.
+    range_nodes = check_nodes(neo4j_session, "AWSIpRange", ["id"])
+    assert range_nodes is not None
+    assert ("0.0.0.0/0",) in range_nodes
+    rows = neo4j_session.run(
+        """
+        MATCH (:AWSIpRange {range: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(rule:AWSIpRule)<-[:RESOURCE]-(a:AWSAccount)
+        RETURN a.id AS account, count(rule) AS rules
+        """,
+    )
+    edges_by_account = {record["account"]: record["rules"] for record in rows}
+    assert edges_by_account.get(TEST_ACCOUNT_ID, 0) > 0
+    assert edges_by_account.get(second_account_id, 0) > 0

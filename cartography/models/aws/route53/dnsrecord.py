@@ -50,11 +50,12 @@ class AWSDNSRecordNodeProperties(CartographyNodeProperties):
         description=(
             "If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. "
             "For CNAME or ALIAS records, this is the target hostname or AWS resource name, "
-            "lowercased and with the trailing root dot removed. Alias targets pointing at a "
-            "load balancer additionally have Route53's `dualstack.` prefix removed, since the "
-            "ELB APIs report the same load balancer without it. Everywhere else a leading "
-            "`dualstack.` is kept, because on an ordinary CNAME or an alias to another record "
-            "in the same hosted zone it is part of a genuinely different hostname. If it is an "
+            "lowercased and with the trailing root dot removed. Targets pointing at a "
+            "load balancer (ALIAS or CNAME) additionally have the `dualstack.` prefix "
+            "removed, since the ELB APIs report the same load balancer without it. "
+            "Everywhere else a leading `dualstack.` is kept, because on an alias to "
+            "another record in the same hosted zone or a CNAME to a non-ELB hostname it "
+            "is part of a genuinely different hostname. If it is an "
             "NS record, the `name` is used here. For an Elasticsearch domain endpoint record, "
             "this is the comma-separated list of IP addresses that the endpoint resolved to."
         ),
@@ -204,6 +205,46 @@ class AWSDNSRecordToESDomainRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSDNSRecordToCloudFrontDistributionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSDNSRecordToRedshiftClusterRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSDNSRecordToCloudFrontDistributionRel(CartographyRelSchema):
+    target_node_label: str = "AWSCloudFrontDistribution"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "domain_name": PropertyRef("value"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DNS_POINTS_TO"
+    properties: AWSDNSRecordToCloudFrontDistributionRelProperties = (
+        AWSDNSRecordToCloudFrontDistributionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSDNSRecordToRedshiftClusterRel(CartographyRelSchema):
+    target_node_label: str = "AWSRedshiftCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "endpoint_address": PropertyRef("value"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DNS_POINTS_TO"
+    properties: AWSDNSRecordToRedshiftClusterRelProperties = (
+        AWSDNSRecordToRedshiftClusterRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSDNSRecordToDNSRecordRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -277,6 +318,8 @@ class AWSDNSRecordSchema(CartographyNodeSchema):
             AWSDNSRecordToLoadBalancerRel(),
             AWSDNSRecordToLoadBalancerV2Rel(),
             AWSDNSRecordToESDomainRel(),
+            AWSDNSRecordToCloudFrontDistributionRel(),
+            AWSDNSRecordToRedshiftClusterRel(),
             AWSDNSRecordToDNSRecordRel(),
             AWSDNSRecordToZoneRel(),
             AWSDNSRecordToIpRel(),

@@ -805,6 +805,9 @@ class Module(str, Enum):
     PAGERDUTY = "PagerDuty"
     """PagerDuty incident response"""
 
+    PYLON = "Pylon"
+    """Pylon customer support platform"""
+
     RAILWAY = "Railway"
     """Railway platform-as-a-service"""
 
@@ -813,6 +816,9 @@ class Module(str, Enum):
 
     SUPABASE = "Supabase"
     """Supabase backend-as-a-service"""
+
+    NEON = "Neon"
+    """Neon serverless Postgres and object storage"""
 
     SEMGREP = "Semgrep"
     """Semgrep code security"""
@@ -879,9 +885,11 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.OKTA: "okta",
     Module.OPENAI: "openai",
     Module.PAGERDUTY: "pagerduty",
+    Module.PYLON: "pylon",
     Module.RAILWAY: "railway",
     Module.SCALEWAY: "scaleway",
     Module.SUPABASE: "supabase",
+    Module.NEON: "neon",
     Module.SEMGREP: "semgrep",
     Module.SENTINELONE: "sentinelone",
     Module.SNIPEIT: "snipeit",

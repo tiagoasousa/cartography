@@ -14,8 +14,21 @@ Personal access token (PAT) inventory depends on APIs that GitHub exposes only
 in specific contexts. Fine-grained PAT inventory requires GitHub App
 authentication and the organization `Personal access tokens: Read` permission.
 Classic PAT metadata is available only through SAML SSO credential
-authorizations for SAML-enabled organizations. Cartography stores token metadata
+authorizations for SAML-enabled organizations, readable by a GitHub App with
+organization `Administration: Read` or by a classic PAT of an organization owner
+with `read:org`. Cartography stores token metadata
 only. It never stores token values, prefixes, or token fragments.
+A classic PAT is identified by GitHub's `authorized_credential_id`, the token's
+own ID, so a token authorized for several organizations is one node with an
+`AUTHORIZED_CREDENTIAL` edge from each organization. Each edge carries that
+organization's `credential_id` (the SAML authorization to revoke),
+`credential_authorized_at` and `credential_accessed_at`. An organization's sync
+removes only its own edge, and the token node is deleted by the unscoped
+cleanup that runs after all organizations have synced, once no organization
+authorizes it. When GitHub omits `authorized_credential_id`, Cartography falls
+back to the organization-scoped credential authorization ID, so that token is not
+deduplicated across organizations. Fine-grained PATs have a single resource owner
+and keep their `RESOURCE` edge.
 When GitHub returns authorization or availability errors for either inventory
 endpoint, Cartography skips cleanup so previously synced token metadata is
 preserved.
@@ -23,6 +36,26 @@ preserved.
 Repository ruleset bypass actors are intentionally unavailable. GitHub returns
 them only to callers with write access to the ruleset, while Cartography is
 designed to use read-only credentials.
+
+Which branch protection rule and which rulesets govern a repository's default
+branch comes from GitHub rather than from matching patterns in Cartography: the
+GraphQL `defaultBranchRef.branchProtectionRule` field and the REST
+`GET /repos/{owner}/{repo}/rules/branches/{branch}` endpoint, called once per
+repository that has a default branch and at least one ruleset. They are stored as
+`GitHubBranchProtectionRule.protects_default_branch` and the
+`applies_to_default_branch` property of `HAS_RULESET`.
+
+When a credential cannot read a repository's branch protection rules or
+rulesets, `branch_protection_rules_visible` or `rulesets_visible` on
+`GitHubRepository` is false, and the default-branch protection facts and
+`codeowners_review_not_required` do not evaluate that repository;
+`codeowners_missing` still does, since it only needs the CODEOWNERS read. A truncated branch protection rule list also counts as not visible.
+If the privileged fetch fails for the whole organization, branch protection rule
+and ruleset cleanup is skipped so previously synced data is kept. Otherwise
+cleanup runs, so a rule removed from a readable repository is not kept alive by
+another repository that is unreadable.
+`codeowners_readable` records whether every CODEOWNERS location on the default
+branch could be read.
 
 GitHub exposes Actions secret metadata but never secret values. Actions variable
 values, by contrast, are returned by the API and stored in plaintext in the

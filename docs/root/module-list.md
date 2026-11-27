@@ -13,6 +13,7 @@ modules/aws/index
 modules/azure/index
 modules/bbot/index
 modules/bigfix/index
+modules/bitbucket/index
 modules/circleci/index
 modules/cloudflare/index
 modules/crowdstrike/index
@@ -39,6 +40,7 @@ modules/lastpass/index
 modules/microsoft/index
 modules/miradore/index
 modules/modal/index
+modules/neon/index
 modules/netlify/index
 modules/notion/index
 modules/oci/index
@@ -49,11 +51,13 @@ modules/openai/index
 modules/orca/index
 modules/opsgenie/index
 modules/pagerduty/index
+modules/pylon/index
 modules/railway/index
 modules/salesforce/index
 modules/scaleway/index
 modules/semgrep/index
 modules/sentinelone/index
+modules/sentra/index
 modules/sentry/index
 modules/slack/index
 modules/snipeit/index
@@ -62,6 +66,7 @@ modules/socketdev/index
 modules/spacelift/index
 modules/subimage/index
 modules/supabase/index
+modules/sweet/index
 modules/syft/index
 modules/tailscale/index
 modules/tenable/index

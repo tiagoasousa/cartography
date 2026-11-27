@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.github.supply_chain
+import cartography.intel.supply_chain
 from tests.data.github.dockerfiles import DEMO_ORG_REPOS
 from tests.data.github.dockerfiles import DOCKERFILE_CONTENT
 from tests.data.github.dockerfiles import DOCKERFILE_DEV_CONTENT
@@ -308,6 +309,40 @@ def test_sync_no_unmatched_images(mock_get_unmatched_images, neo4j_session):
     )
 
 
+@pytest.mark.parametrize(
+    "api_url,rest_base",
+    [
+        ("https://api.github.com/graphql", "https://api.github.com"),
+        ("https://ghe.example.com/api/graphql", "https://ghe.example.com/api/v3"),
+    ],
+    ids=["github-com", "ghes"],
+)
+@patch(
+    "cartography.intel.github.supply_chain.get_dockerfiles_for_repos", return_value=[]
+)
+@patch(
+    "cartography.intel.github.supply_chain.get_unmatched_container_images_with_history"
+)
+def test_sync_searches_dockerfiles_on_the_rest_api(
+    mock_get_unmatched_images, mock_get_dockerfiles, neo4j_session, api_url, rest_base
+):
+    mock_get_unmatched_images.return_value = [MagicMock()]
+
+    cartography.intel.github.supply_chain.sync(
+        neo4j_session=neo4j_session,
+        token="test_token",
+        api_url=api_url,
+        organization="testorg",
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=TEST_JOB_PARAMS,
+        repos=TEST_REPOS,
+    )
+
+    mock_get_dockerfiles.assert_called_once_with(
+        "test_token", TEST_REPOS, "testorg", rest_base
+    )
+
+
 @patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_get_file_content_handles_not_found(mock_rest_api):
     """
@@ -340,12 +375,23 @@ def _route_rest_call(endpoint: str, token: str, base_url: str, params=None):
     return MULTI_ORG_REST_RESPONSES[endpoint]
 
 
+@pytest.mark.parametrize(
+    "stored_source_uri",
+    [
+        "https://github.com/example-platform/api",
+        # Stored by an earlier version that kept the label's monorepo folder URL.
+        "https://github.com/example-platform/api/tree/main/services/api",
+        "https://github.com/example-platform/api.git/tree/main/services/api",
+        "https://github.com/example-platform/api/-/tree/main/services/api",
+    ],
+    ids=["repo-url", "folder-url", "dot-git-folder-url", "gitlab-style-folder-url"],
+)
 @patch(
     "cartography.intel.github.supply_chain.call_github_rest_api",
     side_effect=_route_rest_call,
 )
 def test_sync_links_labeled_image_to_its_source_repo_across_orgs(
-    mock_rest_api, isolated_neo4j_session
+    mock_rest_api, isolated_neo4j_session, stored_source_uri
 ):
     # Arrange: the platform image carries an OCI source label; the demo org
     # syncs first and holds a stale Dockerfile link from an earlier run.
@@ -358,7 +404,8 @@ def test_sync_links_labeled_image_to_its_source_repo_across_orgs(
             -[:REPO_IMAGE]->(:ImageTag {id: 'registry/api:latest', tag: 'latest'})
             -[:IMAGE]->(img:Image {
                 id: 'sha256:platform', digest: 'sha256:platform',
-                source_uri: 'https://github.com/example-platform/api',
+                source_uri: $stored_source_uri,
+                _ont_source_uri: $stored_source_uri,
                 layer_diff_ids: [i IN range(0, size($history) - 1) | 'sha256:layer-' + toString(i)]
             })
         WITH img
@@ -376,9 +423,11 @@ def test_sync_links_labeled_image_to_its_source_repo_across_orgs(
         """,
         history=PLATFORM_IMAGE_LAYER_HISTORY,
         stale_tag=TEST_UPDATE_TAG - 1,
+        stored_source_uri=stored_source_uri,
     ).consume()
 
     # Act
+    cartography.intel.supply_chain.migrate_source_folder_urls(session, TEST_JOB_PARAMS)
     for organization, repos in (
         ("example-demos", DEMO_ORG_REPOS),
         ("example-platform", PLATFORM_ORG_REPOS),
@@ -403,3 +452,13 @@ def test_sync_links_labeled_image_to_its_source_repo_across_orgs(
     assert links == [
         {"repo": "https://github.com/example-platform/api", "method": "provenance"},
     ]
+    stored = session.run(
+        """
+        MATCH (img:Image {id: 'sha256:platform'})
+        RETURN img.source_uri AS source_uri, img._ont_source_uri AS ont_source_uri
+        """
+    ).single()
+    assert (stored["source_uri"], stored["ont_source_uri"]) == (
+        "https://github.com/example-platform/api",
+        "https://github.com/example-platform/api",
+    )

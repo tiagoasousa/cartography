@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.security_group_rules import IpPermissionInboundSchema
@@ -198,10 +199,48 @@ def cleanup_ec2_security_groupinfo(
         neo4j_session,
     )
     GraphJob.from_node_schema(IpRuleSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(IpRangeSchema(), common_job_parameters).run(neo4j_session)
+    _cleanup_ip_range_references(neo4j_session, common_job_parameters)
     GraphJob.from_node_schema(
         EC2SecurityGroupInstanceSchema(),
         common_job_parameters,
+    ).run(neo4j_session)
+
+
+def _cleanup_ip_range_references(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    # AWSIpRange nodes are keyed on the bare CIDR and shared across accounts, so cleanup
+    # must go through this account's rules only; a node-scoped job would wipe other
+    # accounts' edges (and the shared node itself) on every scan.
+    stale_edges = GraphStatement(
+        """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(rule:AWSIpRule)<-[r:MEMBER_OF_IP_RULE]-(n:AWSIpRange)
+        WHERE r.lastupdated <> $UPDATE_TAG
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r
+        """,
+        parameters=common_job_parameters,
+        iterative=True,
+        iterationsize=10000,
+        parent_job_name="ip_range_cleanup",
+    )
+    orphaned_ranges = GraphStatement(
+        """
+        MATCH (n:AWSIpRange)
+        WHERE NOT (n)-[:MEMBER_OF_IP_RULE]->()
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n
+        """,
+        parameters=common_job_parameters,
+        iterative=True,
+        iterationsize=10000,
+        parent_job_name="ip_range_cleanup",
+    )
+    GraphJob(
+        "Cleanup AWSIpRange references",
+        [stale_edges, orphaned_ranges],
+        "ip_range_cleanup",
     ).run(neo4j_session)
 
 

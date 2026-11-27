@@ -8,10 +8,14 @@ entra_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="EntraUser",
             fields=[
+                # Entra leaves `mail` empty for accounts without a mailbox, such
+                # as admin and service accounts. The UPN is their sign-in name.
                 OntologyFieldMapping(
                     ontology_field="email",
                     node_field="email",
                     required=True,
+                    special_handling="coalesce",
+                    extra={"fields": ["user_principal_name"]},
                 ),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="given_name"
@@ -153,6 +157,28 @@ anthropic_mapping = OntologyMapping(
                     ontology_field="email", node_field="email", required=True
                 ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
+pylon_mapping = OntologyMapping(
+    module_name="pylon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PylonUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="is_deactivated",
+                    special_handling="invert_boolean",
+                ),
+                # has_mfa: Not available; sign-in happens through Slack, Google,
+                # Microsoft, or SAML.
+                # lastactivity: Not available
             ],
         ),
     ],
@@ -884,6 +910,29 @@ langsmith_mapping = OntologyMapping(
 )
 
 
+neon_mapping = OntologyMapping(
+    module_name="neon",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NeonOrganizationMember",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="has_mfa", node_field="has_mfa"),
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="deactivated_at",
+                    special_handling="to_boolean",
+                ),
+                # username: Not available. Neon identifies users by email.
+                # lastactivity: Not available.
+            ],
+        ),
+    ],
+)
+
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -940,6 +989,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "onepassword": onepassword_mapping,
     "gsuite": gsuite_mapping,
     "anthropic": anthropic_mapping,
+    "pylon": pylon_mapping,
     "airbyte": airbyte_mapping,
     "cloudflare": cloudflare_mapping,
     "duo": duo_mapping,
@@ -999,6 +1049,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "supabase": supabase_mapping,
+    "neon": neon_mapping,
     "modal": modal_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",

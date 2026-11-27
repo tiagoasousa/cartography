@@ -93,6 +93,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "openai": _LazyStage("cartography.intel.openai", "start_openai_ingestion"),
         "github": _LazyStage("cartography.intel.github", "start_github_ingestion"),
         "gitlab": _LazyStage("cartography.intel.gitlab", "start_gitlab_ingestion"),
+        "bitbucket": _LazyStage(
+            "cartography.intel.bitbucket", "start_bitbucket_ingestion"
+        ),
         "digitalocean": _LazyStage(
             "cartography.intel.digitalocean", "start_digitalocean_ingestion"
         ),
@@ -131,6 +134,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.tailscale", "start_tailscale_ingestion"
         ),
         "jamf": _LazyStage("cartography.intel.jamf", "start_jamf_ingestion"),
+        "pylon": _LazyStage("cartography.intel.pylon", "start_pylon_ingestion"),
         "pagerduty": _LazyStage(
             "cartography.intel.pagerduty", "start_pagerduty_ingestion"
         ),
@@ -154,9 +158,11 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "sentinelone": _LazyStage(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
         ),
+        "sentra": _LazyStage("cartography.intel.sentra", "start_sentra_ingestion"),
         "tenable": _LazyStage("cartography.intel.tenable", "start_tenable_ingestion"),
         "wiz": _LazyStage("cartography.intel.wiz", "start_wiz_ingestion"),
         "orca": _LazyStage("cartography.intel.orca", "start_orca_ingestion"),
+        "sweet": _LazyStage("cartography.intel.sweet", "start_sweet_ingestion"),
         "cve_metadata": _LazyStage(
             "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
         ),
@@ -172,6 +178,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "supabase": _LazyStage(
             "cartography.intel.supabase", "start_supabase_ingestion"
         ),
+        "neon": _LazyStage("cartography.intel.neon", "start_neon_ingestion"),
         "railway": _LazyStage("cartography.intel.railway", "start_railway_ingestion"),
         "netlify": _LazyStage("cartography.intel.netlify", "start_netlify_ingestion"),
         "circleci": _LazyStage(

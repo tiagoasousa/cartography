@@ -6,6 +6,13 @@ on:
   push:
     branches:
       - master
+      # franken-master is the deployable artifact (master + franken.manifest). It is
+      # rebuilt by cherry-pick and never merged from master, so it gets the same
+      # gates rather than inheriting them.
+      - franken-master
+  # PRs opened upstream from this fork target master; those runs are triggered by
+  # the upstream repository, so nothing extra is needed for them here.
+  workflow_dispatch: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}

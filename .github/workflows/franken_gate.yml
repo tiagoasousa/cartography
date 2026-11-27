@@ -1,0 +1,63 @@
+name: Franken manifest gate
+# Asserts that franken-master is exactly master + franken.manifest.
+#
+# franken-master is the deployable artifact: gitlab.com/HnBI/cyber-sec/cloudsec/
+# cartography-assistant pins it and builds the scan, rules and KEV images from it.
+# It is rebuilt by cherry-pick and never merged, so nothing else verifies that it
+# still matches its own definition. A manifest entry that stopped applying, or a
+# hand-edit to the branch, fails here instead of in a scan job.
+#
+# The manifest itself lives on the `ops` branch of this repository, next to the
+# tooling that rebuilds it, so there is one source of truth.
+on:
+  pull_request:
+    branches:
+      - franken-master
+  push:
+    branches:
+      - franken-master
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manifest-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The gate replays the manifest by cherry-pick, so it needs the full
+          # history rather than the default single-commit clone.
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Fetch the manifest from the ops branch
+        env:
+          MANIFEST: /tmp/franken.manifest
+        run: |
+          git fetch --no-tags --quiet origin ops
+          git show origin/ops:franken.manifest > "$MANIFEST"
+          test -s "$MANIFEST"
+          echo "manifest has $(grep -vc '^\s*\(#\|$\)' "$MANIFEST") patches"
+      - name: Replay the manifest and compare
+        env:
+          MANIFEST: /tmp/franken.manifest
+        run: |
+          # The replay commits are throwaway and never pushed, so a bare identity is
+          # enough. Deliberately not an email address: the repo's pre-push PII gate
+          # flags any address-shaped string, and this job must not need an exception.
+          git config user.name "franken gate"
+          git config user.email "franken-gate"
+          # franken-master is always rebuilt on the tip of master, and the manifest
+          # is replayed onto it. --base is therefore master, not the push's parent:
+          # a rebuild can legitimately change every commit on the branch.
+          python .ci/verify_franken.py \
+            --manifest "$MANIFEST" \
+            --base origin/master \
+            --branch "${{ github.sha }}"

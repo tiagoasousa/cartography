@@ -1,0 +1,228 @@
+name: Rebase franken-master onto upstream master
+# Moves franken-master onto newer upstream master, on demand.
+#
+# Keeps one invariant: franken-master == master + franken.manifest, where master is
+# the fork's 1:1 mirror of upstream. Advancing franken-master without advancing
+# master breaks it -- the gate then replays the manifest onto a stale master and
+# compares against a branch built on newer code. So this run advances both, and
+# refuses to push either unless the result reproduces the manifest.
+#
+# The mirror moves by fast-forward only. If it ever carries a commit upstream does
+# not have, the run stops rather than forcing over it, because master is only
+# legitimate as a strict mirror.
+#
+# Start it with: gh workflow run sync_franken.yml --repo <owner>/<repo> --ref franken-master
+# (workflow_dispatch resolves against the default branch's workflow list but runs
+# the file from --ref, so the workflow does not need to exist on master).
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_sha:
+        description: "Upstream commit to move to. Empty means the current upstream master tip."
+        required: false
+        type: string
+      dry_run:
+        description: "Report what would change without pushing anything"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  # contents: write to push master and franken-master.
+  # actions: write to dispatch the gate, Test Suite and sphinx on the result --
+  # creating a workflow_dispatch event requires Actions write, and without it the
+  # push would land with nothing verifying it.
+  contents: write
+  actions: write
+
+concurrency:
+  group: franken-rebase
+  cancel-in-progress: false
+
+jobs:
+  rebase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Replaying a 23-commit stack needs real history, not a shallow clone.
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/cartography-cncf/cartography.git
+          git fetch --no-tags --quiet upstream master:refs/remotes/upstream/master
+
+      - name: Resolve the target commit
+        id: want
+        env:
+          REQUESTED: ${{ inputs.upstream_sha }}
+        run: |
+          if [ -n "$REQUESTED" ]; then
+            if ! printf '%s' "$REQUESTED" | grep -qE '^[0-9a-f]{40}$'; then
+              echo "FAIL upstream_sha must be a full 40-character commit SHA" >&2
+              exit 1
+            fi
+            want="$REQUESTED"
+            if ! git cat-file -e "${want}^{commit}" 2>/dev/null; then
+              echo "FAIL $want is not a commit in cartography-cncf/cartography" >&2
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$want" refs/remotes/upstream/master; then
+              echo "FAIL $want is not on upstream master" >&2
+              exit 1
+            fi
+          else
+            want=$(git rev-parse refs/remotes/upstream/master)
+          fi
+          echo "sha=$want" >> "$GITHUB_OUTPUT"
+          echo "target: $want ($(git log -1 --format=%s "$want"))"
+
+      - name: Compare with the fork mirror
+        id: drift
+        env:
+          WANT: ${{ steps.want.outputs.sha }}
+        run: |
+          mirror=$(git rev-parse origin/master)
+          branch=$(git rev-parse origin/franken-master)
+          echo "mirror:   $mirror"
+          echo "branch:   $branch"
+          if [ "$WANT" = "$mirror" ]; then
+            echo "state=current" >> "$GITHUB_OUTPUT"
+            echo "mirror already on $WANT - nothing to do"
+            exit 0
+          fi
+          if git merge-base --is-ancestor "$WANT" "$mirror"; then
+            echo "state=stale" >> "$GITHUB_OUTPUT"
+            echo "::warning::$WANT is behind the fork mirror $mirror - not rewinding"
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor "$mirror" "$WANT"; then
+            echo "state=diverged" >> "$GITHUB_OUTPUT"
+            echo "::warning::the fork mirror and upstream master have diverged from $WANT" >&2
+            echo "master is only legitimate as a strict mirror; resolve by hand." >&2
+            exit 0
+          fi
+          echo "state=advance" >> "$GITHUB_OUTPUT"
+          echo "advancing $mirror ($(git rev-list --count "$mirror..$WANT") upstream commits) to $WANT"
+
+      - name: Rebase the stack onto upstream
+        id: rebase
+        if: steps.drift.outputs.state == 'advance'
+        env:
+          WANT: ${{ steps.want.outputs.sha }}
+        run: |
+          git config user.name "franken rebase"
+          # Deliberately not an address: the repo's pre-push PII gate treats any
+          # address-shaped string as a finding, so this must not need an exception.
+          git config user.email "franken-rebase"
+
+          # Work from the published branch, never a local one that may untested.
+          git checkout --quiet --detach origin/franken-master
+          # Any bump file pushed by the old trigger must not end up in the result.
+          git rm --quiet --ignore-unmatch .github/franken/upstream-ref 2>/dev/null || true
+          if ! git diff --quiet HEAD; then
+            git commit --quiet -s -m "chore: drop the superseded bump file"
+          fi
+
+          before=$(git rev-parse HEAD)
+          echo "before=$before" >> "$GITHUB_OUTPUT"
+          if git rebase --onto "$WANT" origin/master HEAD; then
+            :
+          else
+            git rebase --abort 2>/dev/null || true
+            echo "" >&2
+            echo "CONFLICT - nothing pushed, both branches unchanged." >&2
+            echo "" >&2
+            echo "Patches on the stack, oldest first:" >&2
+            git log --oneline --reverse "origin/master..${before}" >&2 || true
+            echo "" >&2
+            echo "Resolve locally:" >&2
+            echo "  cd ~/repos/cartography-ops && scripts/rebuild-franken.sh" >&2
+            exit 1
+          fi
+          echo "after=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "rebased onto ${WANT:0:8}: $(git rev-list --count "${WANT}..HEAD") commits"
+
+      - name: Verify the result reproduces the manifest
+        if: steps.drift.outputs.state == 'advance'
+        env:
+          WANT: ${{ steps.want.outputs.sha }}
+        run: |
+          # Gate before pushing: the rebased tree must equal upstream + manifest.
+          # --base is the new upstream tip, which is also where master is about to
+          # point, so this checks exactly the invariant the push will establish.
+          git fetch --no-tags --quiet origin ops
+          git show origin/ops:franken.manifest > /tmp/franken.manifest
+          python .ci/verify_franken.py \
+            --manifest /tmp/franken.manifest \
+            --base "$WANT" \
+            --branch HEAD
+
+      - name: Push both refs
+        id: push
+        if: steps.drift.outputs.state == 'advance'
+        env:
+          WANT: ${{ steps.want.outputs.sha }}
+          AFTER: ${{ steps.rebase.outputs.after }}
+          BEFORE: ${{ steps.rebase.outputs.before }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY" = "true" ]; then
+            echo "dry run: would move master to ${WANT:0:8} and franken-master to ${AFTER:0:8}"
+            exit 0
+          fi
+          # GITHUB_TOKEN is enough, and is the only credential here. It cannot
+          # start a workflow by pushing (GitHub suppresses push-triggered runs for
+          # its own token), which is why the checks are dispatched explicitly in
+          # the next step instead of relying on the push to trigger them.
+          #
+          # franken-master first: master leading it would break the invariant for
+          # the window between the two pushes, and the gate runs per push.
+          git push --force-with-lease="refs/heads/franken-master:${BEFORE}" \
+            origin "${AFTER}:refs/heads/franken-master"
+          git push origin "${WANT}:refs/heads/master"
+
+      - name: Run the checks on the result
+        if: steps.drift.outputs.state == 'advance' && inputs.dry_run == false
+        env:
+          # workflow_dispatch always creates a run, even for a GITHUB_TOKEN caller,
+          # so the checks need no separate credential.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AFTER: ${{ steps.rebase.outputs.after }}
+        run: |
+          for wf in "Franken manifest gate" "Test Suite" "sphinx"; do
+            echo "dispatching: $wf"
+            gh workflow run "$wf" --repo "$GITHUB_REPOSITORY" --ref franken-master
+          done
+          sleep 10
+          gh run list --repo "$GITHUB_REPOSITORY" --limit 5
+          echo ""
+          echo "The three checks are running against ${AFTER:0:8}."
+          echo "Watch them: gh run list --repo $GITHUB_REPOSITORY --limit 5"
+
+      - name: Summary
+        env:
+          STATE: ${{ steps.drift.outputs.state }}
+          WANT: ${{ steps.want.outputs.sha }}
+          AFTER: ${{ steps.rebase.outputs.after }}
+        run: |
+          {
+            case "$STATE" in
+              current) echo "### nothing to do — master already on ${WANT:0:8}" ;;
+              stale)
+                echo "### skipped — ${WANT:0:8} is behind the fork mirror"
+                echo "The mirror already has newer upstream. Nothing to sync." ;;
+              diverged)
+                echo "### refused — fork master has diverged from upstream"
+                echo "master is only legitimate as a strict 1:1 mirror. Fix it by hand." ;;
+              advance)
+                echo "### advanced to upstream ${WANT:0:8}"
+                echo "master -> \`${WANT:0:8}\`, franken-master -> \`${AFTER:0:8}\`" ;;
+            esac
+            if [ "$STATE" = "advance" ]; then
+              echo ""
+              echo "Next: bump \`ci/cartography-ref.env\` to \`${AFTER:0:8}\` in"
+              echo "cartography-assistant. That step is manual by design."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
