@@ -10,11 +10,12 @@ patch**, not a commit on `master`.
 
 | Thing | Value |
 |---|---|
-| `franken-master` | `2aafc189d12f8917f09347b9eff86f036848e86b`, 23 patches on `origin/master` |
-| manifest | `cartography-ops/franken.manifest` @ `ops 739b202f` |
+| `franken-master` | `122808e20b85bcfa5b137157f650c3589b48be53`, 23 patches on `origin/master` |
+| manifest | `cartography-ops/franken.manifest` @ `ops c105508f` |
 | fork CI | Test Suite ✅ (23/23 jobs), Franken manifest gate ✅, sphinx ✅ |
-| assistant branch | `ci/pin-franken-master` @ `7e56269`, MR not yet opened |
-| pin | `ci/cartography-ref.env` → `2aafc189…`, the tip of `franken-master` |
+| assistant branch | `ci/pin-franken-master` @ `2bed503`, MR not yet opened |
+| pin | `ci/cartography-ref.env` → `122808e2…`, the tip of `franken-master` |
+| anchor | `refs/heads/franken-pins` (`eca22e37`), keeps all 23 patch commits reachable |
 
 ## Fork CI (GitHub)
 
@@ -85,9 +86,23 @@ deployable artifact:
 - **Base is `master`, not tag `0.145.0`** (user's instruction). `0.145.0` is an
   ancestor of `master`; the manifest is 34 upstream commits ahead of the tag.
 
+## Manifest durability
+
+Cherry-picked patches are only reachable through the branches that hold them, and
+cherry-picks create new SHAs, so none of them are ancestors of `franken-master`.
+Deleting a feature branch therefore orphans its patch commits and the next rebuild
+fails with a git fatal. `refs/heads/franken-pins` is an octopus commit whose parents
+are all 23 patch commits; the gate now resolves every SHA up front and names the
+missing ones. Recreate the anchor whenever the manifest changes:
+
+    TREE=$(git write-tree)
+    git commit-tree $TREE -p <sha> -p <sha> ... | xargs git push origin HEAD:franken-pins
+
+Verified: a fresh clone fetching only `franken-pins` resolves all 23.
+
 ## Still open
 
-- Assistant MR not opened — branch is pushed. Needs the MR description and a
+- Assistant MR not opened (branch at `2bed503`) — branch is pushed. Needs the MR description and a
   reviewer; the `pin:cartography` job has not run on real GitLab yet.
 - `Dockerfile.rules` moving from upstream to the fork is the highest-blast-radius
   change in the set and has never built on arm64. `build:rules-validate` runs on the
