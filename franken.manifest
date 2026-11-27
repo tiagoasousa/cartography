@@ -26,4 +26,6 @@ c9fa8adfa12acadba48e53c3cbcbfc33213210db feat/route53-redshift-dns             R
 0b83a809121c44727930656f214490a0e8fe6e52 feat/route53-dualstack-cname-matching fix(aws): match ordinary CNAMEs to dualstack ELB targets
 571fa988289988b9cf490e3f16f0449aa2c5c949 feat/aws-elbv2-listener-rules         feat(aws): ingest ELBv2 listener routing rules for host+path target-group resolution
 ba47f1d33745de6595ce1f828eb1ae55de358302 feat/aws-elbv2-listener-rules         test(aws): cover ELBv2 listener rule routing
-d3685e20cf528e23db6de14fbf744e7df9cfa1d9 ci/franken-gates                 ci: gate franken-master, add the ELBv2 describe_rules fixture, fix lint
+44817c925ff9766ed9fdf776ef2cb62ab72cd640 fix/aws-elbv2-listener-rules      fix(aws): preserve ALB regex path and host conditions on listener rules
+e042388e8a5935d353524c8c0f01bd1bc81b1f61 fix/aws-elbv2-listener-rules      fix(aws): fold case in host regexes without rewriting the regex source
+021b4cd68953f3270a21f28d553e08e08f562fd7 ci/franken-gates                 ci: gate franken-master, add the ELBv2 describe_rules fixture, fix lint
