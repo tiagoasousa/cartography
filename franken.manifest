@@ -33,4 +33,5 @@ c9fa8adfa12acadba48e53c3cbcbfc33213210db feat/route53-redshift-dns             R
 ba47f1d33745de6595ce1f828eb1ae55de358302 feat/aws-elbv2-listener-rules         test(aws): cover ELBv2 listener rule routing
 44817c925ff9766ed9fdf776ef2cb62ab72cd640 fix/aws-elbv2-listener-rules      fix(aws): preserve ALB regex path and host conditions on listener rules
 e042388e8a5935d353524c8c0f01bd1bc81b1f61 fix/aws-elbv2-listener-rules      fix(aws): fold case in host regexes without rewriting the regex source
-fa677d8c ci/franken-gates                 ci: gate franken-master and rebuild it onto upstream on demand
+e1dfb0c9 ci/franken-gates                 ci: gate franken-master and rebuild it onto upstream on demand
+9135534b ci/franken-gates                 ci: build a scan image from this branch and publish it to ghcr
