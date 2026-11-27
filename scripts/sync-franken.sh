@@ -3,7 +3,8 @@
 #
 # Starts .github/workflows/sync_franken.yml, which advances the fork's `master` to
 # the upstream commit and rebases the franken-master stack onto it, then pushes
-# both. The invariant it maintains is franken-master == master + franken.manifest.
+# both and dispatches the gate, Test Suite and sphinx against the result.
+# The invariant it maintains is franken-master == master + franken.manifest.
 #
 # Nothing here pushes a branch directly, so a conflict never leaves the two refs
 # out of step: the workflow verifies the replay before it pushes anything.

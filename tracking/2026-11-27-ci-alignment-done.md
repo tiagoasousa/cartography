@@ -132,9 +132,13 @@ workflow file has to live on `master`. An earlier bump-file trigger existed for
 this and has been removed — it was built on a misreading of the GitHub docs, which
 describe the UI button rather than the API.
 
-`FRANKEN_PUSH_TOKEN` must be a fine-grained PAT: pushes made with `GITHUB_TOKEN`
-do not start further workflow runs, so the gate and Test Suite would never see the
-new commits. The workflow fails rather than pushing unverified.
+**No secret is needed.** An earlier version required a `FRANKEN_PUSH_TOKEN` PAT on
+the theory that only a PAT push would trigger the checks. That was wrong twice
+over: `workflow_dispatch` events always create runs regardless of who triggers
+them, so the sync pushes with the job's own `GITHUB_TOKEN` and then dispatches
+`Franken manifest gate`, `Test Suite` and `sphinx` against `franken-master`
+explicitly. That dispatch needs `actions: write` alongside `contents: write` --
+without it the push lands with nothing verifying it.
 
 ## Still open
 
