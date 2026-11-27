@@ -14,17 +14,17 @@ e917166f2b5aba28ee30689f746a0bce96551277 fix/aws-lambda-retry-budget-override  f
 714791946ba6cbc01ad27dbcc7c3dce96ce2feae fix/aws-organizations-account-names   fix(aws): keep Organizations account names across per-account scans
 09cf76d4ad0a76d44314ba12f4b1c7e1df10070e fix/aws-organizations-account-names   test(aws): cover Organizations account name preservation
 e728e2c8c5acf2f54c45171f8d37bf97f5266311 feat/aws-iam-root-password-presence   feat(aws): persist root password presence from the IAM account summary
-3d50d96f9c258b3a3424dd26078ca977c12f2895 feat/route53-cloudfront-dns           Add Route53 DNS_POINTS_TO relationship for CloudFront distributions
 ef3bef3e67ab60506a3e38785208a0f673986c4f stack/cloudfront-routing          Model CloudFront custom origins and link distributions to load balancers
 a9ed16bd48c49bddfb55eb6f0cc1924cbeef07b1 stack/cloudfront-routing          fix(aws): lowercase CloudFront origin domain names for LB matcher
 5e6ed3138b0e1440f60a44a0a20c1d14c094320e stack/cloudfront-routing          feat(aws): store CloudFront cache behavior routing on distributions
 0a758a681020c001747e35ca44bf3f8d3400e0a0 stack/cloudfront-routing          fix(aws): persist origin_endpoints and drop the duplicate property
 9f92c2762ab89a4111104e1fa822bf4914c835e6 stack/cloudfront-routing          test(aws): assert every persisted CloudFront routing property
-c5f97b8aca464237e3795f348730b496d2ce55b3 feat/route53-redshift-dns             Add Route53 DNS_POINTS_TO relationship for Redshift clusters (pre-resolved; supersedes c6461749)
+c9fa8adfa12acadba48e53c3cbcbfc33213210db feat/route53-redshift-dns             Route53 DNS_POINTS_TO for CloudFront + Redshift, merged (supersedes 3d50d96f and c6461749)
 2967261c0541e83e68379c64bf7acaf23748fcbb feat/apigateway-lambda-integration    Link API Gateway REST integrations to Lambda functions
 2411f221750063973815aee78cf66265412dbd43 fix/iprange-shared-cleanup-2928       fix(aws): stop AWSIpRange from claiming multi-account ownership
 1543826b37d26f3b4a21af2a5fde99b312135774 fix/iprange-shared-cleanup-2928       fix(aws): scope AWSIpRange cleanup to the referencing account's rules
 0b83a809121c44727930656f214490a0e8fe6e52 feat/route53-dualstack-cname-matching fix(aws): match ordinary CNAMEs to dualstack ELB targets
 571fa988289988b9cf490e3f16f0449aa2c5c949 feat/aws-elbv2-listener-rules         feat(aws): ingest ELBv2 listener routing rules for host+path target-group resolution
 ba47f1d33745de6595ce1f828eb1ae55de358302 feat/aws-elbv2-listener-rules         test(aws): cover ELBv2 listener rule routing
+b9cd8b69e49338611a68a9db9b851b6b01413554 fix/aws-elbv2-listener-rules      fix(aws): drop an unused Any import from the ELBv2 listener rules patch
 c747878253acbb1547230804a5bfe42c4db2096c ci/franken-gates                 ci: gate franken-master and make it the artifact other repos pin
