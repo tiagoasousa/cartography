@@ -1,0 +1,34 @@
+# Scan image built from THIS commit, not from PyPI.
+#
+# The repo's own Dockerfile runs `uv tool install cartography[...]`, which resolves
+# the released PyPI package. Building from source is the entire point of this image:
+# it must carry whatever is on the branch being built.
+#
+# `COPY . .` deliberately includes .git. The build uses setuptools-scm, which derives
+# the version from git tags; without history it falls back to the `fallback_version`
+# of 0.0.0 and every image would claim to be 0.0.0, making a bad image impossible to
+# tell apart from a good one.
+FROM python:3.13.14-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91 AS builder
+COPY --from=ghcr.io/astral-sh/uv@sha256:87a04222b228501907f487b338ca6fc1514a93369bfce6930eb06c8d576e58a4 /uv /uvx /bin/
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY . .
+# The arm64 and amd64 base images are both covered by manylinux wheels for
+# neo4j-rust-ext, so the extra adds no Rust toolchain requirement.
+RUN uv venv /opt/venv \
+    && uv pip install --python /opt/venv/bin/python ".[neo4j-rust]"
+
+FROM python:3.13.14-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
+ENV PATH="/opt/venv/bin:$PATH" \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONUNBUFFERED=1
+COPY --from=builder /opt/venv /opt/venv
+# Match the posture of the images already running the scan CronJobs (10001:10001).
+RUN groupadd --gid 10001 cartography \
+    && useradd --uid 10001 --gid 10001 --no-create-home cartography
+USER 10001:10001
+WORKDIR /var/cartography
+ENTRYPOINT ["cartography"]
+CMD ["-h"]
