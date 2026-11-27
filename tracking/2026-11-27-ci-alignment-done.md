@@ -10,12 +10,12 @@ patch**, not a commit on `master`.
 
 | Thing | Value |
 |---|---|
-| `franken-master` | `122808e20b85bcfa5b137157f650c3589b48be53`, 23 patches on `origin/master` |
-| manifest | `cartography-ops/franken.manifest` @ `ops c105508f` |
+| `franken-master` | `3c677919…`, 23 patches on `origin/master` = `d3152df3` |
+| manifest | `cartography-ops/franken.manifest` @ `ops 85c92733` |
 | fork CI | Test Suite ✅ (23/23 jobs), Franken manifest gate ✅, sphinx ✅ |
 | assistant branch | `ci/pin-franken-master` @ `2bed503`, MR not yet opened |
-| pin | `ci/cartography-ref.env` → `122808e2…`, the tip of `franken-master` |
-| anchor | `refs/heads/franken-pins` (`eca22e37`), keeps all 23 patch commits reachable |
+| pin | `ci/cartography-ref.env` → the tip of `franken-master` (assistant bump pending) |
+| anchor | `refs/heads/franken-pins` (`4bbe9e6f`), keeps all 23 patch commits reachable |
 
 ## Fork CI (GitHub)
 
@@ -99,6 +99,42 @@ missing ones. Recreate the anchor whenever the manifest changes:
     git commit-tree $TREE -p <sha> -p <sha> ... | xargs git push origin HEAD:franken-pins
 
 Verified: a fresh clone fetching only `franken-pins` resolves all 23.
+
+## Moving to newer upstream
+
+Upstream advances on its own schedule, so a push can never be the trigger. The
+mechanism is `.github/workflows/sync_franken.yml`, started by:
+
+    ~/repos/cartography-ops/scripts/sync-franken.sh            # to upstream tip
+    ~/repos/cartography-ops/scripts/sync-franken.sh <sha>      # to a commit
+    ~/repos/cartography-ops/scripts/sync-franken.sh --dry-run  # report only
+
+It advances `master` **and** `franken-master` in one run and pushes neither until
+the replay reproduces the manifest. That pairing is the whole point: rebasing
+`franken-master` onto upstream while `master` stayed behind left the gate replaying
+the manifest onto a stale base and failing — a bug found by running the sync for
+real, not by reasoning about it.
+
+Refusals, all verified by running them:
+
+| Condition | Behaviour |
+|---|---|
+| target is not a full 40-char SHA | fail before any git call |
+| target is not a commit in upstream | fail |
+| target is not on upstream master | fail |
+| target is behind the fork mirror | warn, push nothing |
+| fork mirror diverged from upstream | warn, push nothing |
+| rebase conflicts | abort, push nothing, list the patches |
+| replay does not reproduce the manifest | fail before the push |
+
+`workflow_dispatch` from a non-default branch works when `--ref` is given, so no
+workflow file has to live on `master`. An earlier bump-file trigger existed for
+this and has been removed — it was built on a misreading of the GitHub docs, which
+describe the UI button rather than the API.
+
+`FRANKEN_PUSH_TOKEN` must be a fine-grained PAT: pushes made with `GITHUB_TOKEN`
+do not start further workflow runs, so the gate and Test Suite would never see the
+new commits. The workflow fails rather than pushing unverified.
 
 ## Still open
 
