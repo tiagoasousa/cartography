@@ -1,8 +1,8 @@
 import pytest
 
 from cartography.intel.aws.route53 import _decode_route53_escapes
-from cartography.intel.aws.route53 import _normalize_record_target
 from cartography.intel.aws.route53 import _normalize_dns_target
+from cartography.intel.aws.route53 import _normalize_record_target
 from cartography.intel.aws.route53 import transform_record_set
 
 LB_DNS_NAME = "myawesomeloadbalancer.us-east-1.elb.amazonaws.com"
@@ -86,7 +86,9 @@ def test_transform_record_set_strips_dualstack_from_ordinary_cname_to_elb():
         "ResourceRecords": [{"Value": f"dualstack.{LB_DNS_NAME}."}],
     }
 
-    transformed = transform_record_set(record_set, "/hostedzone/ZONE", "app.example.com")
+    transformed = transform_record_set(
+        record_set, "/hostedzone/ZONE", "app.example.com"
+    )
 
     assert transformed is not None
     assert transformed["value"] == LB_DNS_NAME

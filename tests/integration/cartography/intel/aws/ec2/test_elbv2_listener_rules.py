@@ -157,17 +157,23 @@ def test_listener_rule_routing_is_persisted(neo4j_session):
     assert lengths == {3}
 
 
-def test_listener_rule_host_regex_is_lowercased(neo4j_session):
-    """host-header values are lowercased so consumers can compare toLower(hostname)."""
+def test_listener_rule_host_regex_matches_case_insensitively(neo4j_session):
+    """Host matching is case-insensitive, and folding case leaves the pattern intact.
+
+    Case is folded with an inline (?i:...) group rather than by lowercasing the
+    pattern: lowercasing also rewrites character classes, turning \\S into \\s.
+    """
+    import re
+
     _sync(neo4j_session)
     node = _read_listener(neo4j_session)
 
     # Rule at index 0 is priority 10, which carries the host condition.
-    import re
-
     host_regex = node["host_regexes"][0]
     assert re.match(host_regex, "cdn.example.com")
-    assert not re.match(host_regex, "CDN.Example.COM")
+    assert re.match(host_regex, "CDN.Example.COM")
+    # And it is still a real pattern, not the "match anything" empty regex.
+    assert host_regex not in ("", "^(?:)$")
 
 
 def test_listener_without_rules_has_no_rule_properties(neo4j_session):

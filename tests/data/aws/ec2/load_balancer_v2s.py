@@ -148,6 +148,21 @@ IP_TARGET_API_PAGES = {
     "describe_listeners": {
         "Listeners": [{"ListenerArn": "synthetic-listener", "Port": 443}]
     },
+    # The collector reads each listener's routing rules; a listener returns a default
+    # rule even when the user has configured none.
+    "describe_rules": {
+        "Rules": [
+            {
+                "RuleArn": "synthetic-listener/rule/default",
+                "Priority": "default",
+                "IsDefault": True,
+                "Conditions": [],
+                "Actions": [
+                    {"Type": "forward", "TargetGroupArn": "synthetic-target-group"}
+                ],
+            }
+        ]
+    },
     "describe_target_groups": {
         "TargetGroups": [
             {
