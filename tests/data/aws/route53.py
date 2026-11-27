@@ -220,6 +220,45 @@ ELASTIC_IP_RELATIONSHIP_TEST_RECORDS = [
     ),
 ]
 
+# Records pointing at the Redshift cluster fixture in tests/data/aws/redshift.py:
+# the target values are CLUSTERS[0]["Endpoint"]["Address"] verbatim (with the trailing
+# root dot on the alias target, as Route53 returns it).
+GET_ZONES_REDSHIFT_RESPONSE = [
+    (
+        {
+            "CallerReference": "test-ref-redshift",
+            "Config": {
+                "PrivateZone": False,
+            },
+            "Id": "/hostedzone/REDSHIFT_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 2,
+        },
+        [
+            {
+                "Name": "warehouse.example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "my-cluster.abc.us-east-1.redshift.amazonaws.example.com",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "CNAME",
+            },
+            {
+                "Name": "warehouse-alias.example.com.",
+                "AliasTarget": {
+                    "HostedZoneId": "HOSTED_ZONE_2",
+                    "DNSName": "my-cluster.abc.us-east-1.redshift.amazonaws.example.com.",
+                    "EvaluateTargetHealth": False,
+                },
+                "TTL": 60,
+                "Type": "A",
+            },
+        ],
+    ),
+]
+
 GET_ZONES_WITH_SUBZONE = [
     (
         {
@@ -341,6 +380,44 @@ GET_ZONES_MIXED_CASE_ALIAS_RESPONSE = [
                 },
                 "TTL": 60,
                 "Type": "A",
+            },
+        ],
+    ),
+]
+
+# ALIAS and CNAME records targeting the CloudFront distribution in
+# tests.data.aws.cloudfront.CLOUDFRONT_DISTRIBUTIONS_CUSTOM_ORIGIN
+# (domain d5555555555555.cloudfront.net). Z2FDTNDATAQYW2 is the hosted zone ID
+# that Route53 reports for CloudFront alias targets.
+GET_ZONES_CLOUDFRONT_RELATIONSHIP_TEST_RECORDS = [
+    (
+        {
+            "CallerReference": "cloudfront-test-ref-123",
+            "Config": {
+                "PrivateZone": False,
+            },
+            "Id": "/hostedzone/CLOUDFRONT_TEST_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 2,
+        },
+        [
+            {
+                "Name": "cdn.example.com.",
+                "AliasTarget": {
+                    "HostedZoneId": "Z2FDTNDATAQYW2",
+                    "DNSName": "d5555555555555.cloudfront.net.",
+                    "EvaluateTargetHealth": False,
+                },
+                "TTL": 60,
+                "Type": "A",
+            },
+            {
+                "Name": "cdn2.example.com.",
+                "ResourceRecords": [
+                    {"Value": "d5555555555555.cloudfront.net"},
+                ],
+                "TTL": 300,
+                "Type": "CNAME",
             },
         ],
     ),
